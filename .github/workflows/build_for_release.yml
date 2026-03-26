@@ -1,16 +1,22 @@
 name: Build Go App for Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_call:
+    inputs:
+      tag_name:
+        description: "Tag to build"
+        required: true
+        type: string
+    secrets:
+      TUZIK_TOKEN:
+        required: true
 
 env:
   PRELELEASE_TYPE: ${{ vars.PRERELEASE_TYPE }}
   GO_VERSION: ${{ vars.GO_VERSION }}
 
 concurrency:
-  group: build
+  group: build-${{ inputs.tag_name }}
   cancel-in-progress: true
 
 jobs:
@@ -18,6 +24,7 @@ jobs:
     name: Build Go Binary - ${{ matrix.os }}-${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: linux
@@ -39,8 +46,10 @@ jobs:
       GOOS: ${{ matrix.goos }}
       GOARCH: ${{ matrix.goarch }}
     steps:
-      - name: Checkout code
+      - name: Checkout code at tag
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag_name }}
 
       - name: Set up Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
@@ -53,42 +62,37 @@ jobs:
         env:
           CGO_ENABLED: 1
         run: |
-          # Run all test
           go test -v -race -coverprofile=coverage.out ./...
-      
+
       - name: Build go binary
         id: build
         env:
           CGO_ENABLED: 0
         run: |
-          # Fetch the version from the GitHub release tag
-          VERSION="${{ github.event.release.tag_name }}"
-          
-          # Dynamically set the binary name based on OS and architecture
+          VERSION="${{ inputs.tag_name }}"
+
           BINARY_NAME_ARCH="${GITHUB_REPOSITORY##*/}-${{ matrix.os }}-${{ matrix.arch }}"
           echo "binary_name_arch=${GITHUB_REPOSITORY##*/}-${{ matrix.os }}-${{ matrix.arch }}" >> ${GITHUB_OUTPUT}
           echo "binary_name=${GITHUB_REPOSITORY##*/}" >> ${GITHUB_OUTPUT}
-          
+
           echo "Building ${BINARY_NAME_ARCH} with version ${VERSION}"
-          
-          # Build the Go binary with version information embedded via -ldflags
-          go build -ldflags "-X github.com/magenx/${GITHUB_REPOSITORY##*/}/pkg/version.Version=${VERSION} -s -w" -o "${BINARY_NAME_ARCH}" ./cmd/${GITHUB_REPOSITORY##*/}
-          
-          # Check if the binary was successfully built
+
+          go build -ldflags "-X version.Version=${VERSION} -s -w" \
+            -o "${BINARY_NAME_ARCH}" ./${GITHUB_REPOSITORY##*/}
+
           if [ ! -f "${BINARY_NAME_ARCH}" ]; then
             echo "Error: Build failed. Binary not found!"
             exit 1
           fi
-          
-          # Create checksum
+
           echo "checksum=$(sha256sum ${BINARY_NAME_ARCH})" >> ${GITHUB_OUTPUT}
 
-      - name: Upload artifacts to release
+      - name: Upload artifacts to GitHub Release (still draft at this point)
         id: upload-artifact
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           token: ${{ secrets.TUZIK_TOKEN }}
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ inputs.tag_name }}
           files: |
             ${{ steps.build.outputs.binary_name_arch }}
           append_body: true
@@ -96,14 +100,14 @@ jobs:
             <details>
             <summary>Installation for <strong>${{ matrix.os }} (${{ matrix.arch }})</strong></summary>
             <pre><code>
-            curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.build.outputs.binary_name_arch }}
+            curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}/${{ steps.build.outputs.binary_name_arch }}
             if echo "${{ steps.build.outputs.checksum }}" | sha256sum -c; then
-              echo "✅ Verification passed"
+              echo "Verification passed"
               chmod +x ${{ steps.build.outputs.binary_name_arch }}
               mv ${{ steps.build.outputs.binary_name_arch }} /usr/local/bin/${{ steps.build.outputs.binary_name }}
               ${{ steps.build.outputs.binary_name }} version
             else
-              echo "❌ Verification failed"
+              echo "Verification failed"
             fi
             </code></pre>
             </details>
