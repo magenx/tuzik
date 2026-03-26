@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.1-rc.7](https://github.com/magenx/tuzik/compare/v0.0.1-rc.6...v0.0.1-rc.7) (2026-03-26)
+
+
+### 🚦 Maintenance
+
+* Add systemd service unit file for tuzik ([#34](https://github.com/magenx/tuzik/issues/34)) ([d795e46](https://github.com/magenx/tuzik/commit/d795e46b81ee7ac9675cc8062046a0b7d5b45b53))
+
 ## [0.0.1-rc.6](https://github.com/magenx/tuzik/compare/v0.0.1-rc.5...v0.0.1-rc.6) (2026-03-26)
 
 
