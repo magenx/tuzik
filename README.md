@@ -146,6 +146,60 @@ On startup it:
    whose file matches the configured rules, it executes the configured action.
 3. On `SIGTERM` / `SIGINT`, closes the socket and exits cleanly.
 
+## systemd
+
+### Install and start
+
+After running `make install`, the unit file is placed at `/lib/systemd/system/tuzik.service`.
+Enable and start the service:
+
+```bash
+systemctl daemon-reload
+systemctl enable --now tuzik
+systemctl status tuzik
+```
+
+Check logs with:
+
+```bash
+journalctl -u tuzik -f
+```
+
+### Adjusting `ReadWritePaths`
+
+The unit file ships with example paths that match the defaults in `config.yaml`:
+
+```ini
+ReadWritePaths=/home/magento/public_html/pub/media
+ReadWritePaths=/home/magento/public_html/pub/static
+ReadWritePaths=/var/tuzik/quarantine
+```
+
+These must cover every directory listed under `watch_paths` **and** `quarantine_dir` in
+`/etc/tuzik/config.yaml`.  If you change those config values, create a drop-in override
+to add or replace the paths, then reload systemd:
+
+```bash
+systemctl edit tuzik   # opens a drop-in override file in $EDITOR
+```
+
+To replace all `ReadWritePaths`, reset the list first then set the new values:
+
+```ini
+[Service]
+ReadWritePaths=
+ReadWritePaths=/your/watch/path1
+ReadWritePaths=/your/watch/path2
+ReadWritePaths=/your/quarantine/dir
+```
+
+After saving the drop-in:
+
+```bash
+systemctl daemon-reload
+systemctl restart tuzik
+```
+
 ## Tests
 
 ```bash
