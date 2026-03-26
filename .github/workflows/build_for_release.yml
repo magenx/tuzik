@@ -11,6 +11,10 @@ on:
         description: "Commit SHA to checkout"
         required: true
         type: string
+      prerelease:
+        description: "Release type - prerelease or release"
+        required: true
+        type: boolean
     secrets:
       TUZIK_TOKEN:
         required: true
@@ -100,6 +104,8 @@ jobs:
           tag_name: ${{ inputs.tag_name }}
           files: |
             ${{ steps.build.outputs.binary_name_arch }}
+          draft: true
+          prerelease: ${{ inputs.prerelease }}
           append_body: true
           body: |
             <details>
@@ -109,7 +115,7 @@ jobs:
             if echo "${{ steps.build.outputs.checksum }}" | sha256sum -c; then
               echo "Verification passed"
               chmod +x ${{ steps.build.outputs.binary_name_arch }}
-              mv ${{ steps.build.outputs.binary_name_arch }} /usr/local/bin/${{ steps.build.outputs.binary_name }}
+              mv ${{ steps.build.outputs.binary_name_arch }} /usr/local/sbin/${{ steps.build.outputs.binary_name }}
               ${{ steps.build.outputs.binary_name }} version
             else
               echo "Verification failed"
