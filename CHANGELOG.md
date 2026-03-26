@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.1-rc.2](https://github.com/magenx/tuzik/compare/v0.0.1-rc.1...v0.0.1-rc.2) (2026-03-26)
+
+
+### 🚦 Maintenance
+
+* Fix comment formatting in tuzik_test.go ([#11](https://github.com/magenx/tuzik/issues/11)) ([7764be6](https://github.com/magenx/tuzik/commit/7764be6139e1a1355f0c1c9e989702db298bd69d))
+* Refactor GitHub Actions workflow for release builds ([#10](https://github.com/magenx/tuzik/issues/10)) ([6958249](https://github.com/magenx/tuzik/commit/69582494ec5256462ea00e847455ea3a48ba3769))
+* Update release workflow for prerelease and release jobs ([#9](https://github.com/magenx/tuzik/issues/9)) ([2cd1e82](https://github.com/magenx/tuzik/commit/2cd1e82c984eb4f468f1ff84c3ab3be38d20458e))
+
 ## [0.0.1-rc.1](https://github.com/magenx/tuzik/compare/v0.0.1-rc...v0.0.1-rc.1) (2026-03-26)
 
 
