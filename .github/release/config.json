@@ -31,6 +31,7 @@
     "component": "tuzik",
     "release-type": "simple",
     "prerelease": false,
+    "draft": true,
     "pull-request-title-pattern": "chore${scope}: tuzik ${version}",
     "pull-request-header": ":robot: I have created a [ release ]",
     "include-v-in-tag": true,
