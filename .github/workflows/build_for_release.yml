@@ -1,8 +1,9 @@
 name: Build Go App for Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
 
 env:
   PRELELEASE_TYPE: ${{ vars.PRERELEASE_TYPE }}
