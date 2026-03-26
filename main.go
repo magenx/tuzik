@@ -2,14 +2,22 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/magenx/tuzik/version"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		fmt.Printf("tuzik %s\n", version.Version)
+		os.Exit(0)
+	}
+
 	var (
 		configFile    = flag.String("config", "/etc/tuzik/config.yaml", "path to YAML configuration file")
 		socketPath    = flag.String("socket", "", "override socket_path from config (audisp-af_unix socket)")
