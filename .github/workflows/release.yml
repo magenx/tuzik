@@ -55,6 +55,7 @@ jobs:
     with:
       tag_name: ${{ needs.pre-release.outputs.tag_name }}
       sha: ${{ needs.pre-release.outputs.sha }}
+      prerelease: true
     secrets:
       TUZIK_TOKEN: ${{ secrets.TUZIK_TOKEN }}
 
@@ -102,6 +103,7 @@ jobs:
     with:
       tag_name: ${{ needs.release.outputs.tag_name }}
       sha: ${{ needs.release.outputs.sha }}
+      prerelease: false
     secrets:
       TUZIK_TOKEN: ${{ secrets.TUZIK_TOKEN }}
 
