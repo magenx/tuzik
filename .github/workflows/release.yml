@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+   branches:
+      - main
+   paths-ignore:
+      - '.github/**'
+      - 'config.yaml'
+      - 'README.md'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 #v6.3.0
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: make build
+
+      - name: Create test tag
+        id: tag
+        run: |
+          TAG="v0.0.0-$(date +%Y%m%d%H%M%S)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create pre-release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe #v2.6.1
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          prerelease: true
+          files: ./tuzik
+          generate_release_notes: true
+          overwrite_files: true
+          token: ${{ secrets.GITHUB_TOKEN }}

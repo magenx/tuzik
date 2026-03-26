@@ -1,0 +1,44 @@
+# tuzik configuration
+
+# Path to the audisp-af_unix Unix domain socket created by the audispd plugin.
+# Default: /var/run/audispd_events
+socket_path: /var/run/audispd_events
+
+# Audit key used to identify relevant events.
+# Must match the -k value used in your auditd rules.
+audit_key: "tuzik"
+
+# Paths to watch for file-creation / write events.
+# tuzik reacts to PATH records in audit events whose key matches audit_key
+# and whose file path falls under one of these paths.
+watch_paths:
+  - /home/magento/public_html/pub/media/
+  - /home/magento/public_html/pub/static/
+
+# Optional: paths to exclude from monitoring even if they fall under watch_paths.
+# Leave empty to process all paths under watch_paths.
+ignore_paths: []
+
+# Optional: only act on files with these exact names (basename match).
+# Leave empty to match all filenames.
+filenames: []
+
+# Optional: only act on files with these extensions.
+# A leading '.' is added automatically if omitted.
+# Leave empty to match all extensions.
+extensions:
+  - .php
+
+# Action to perform when a matching file is detected.
+# Supported values: delete | quarantine
+action: quarantine
+
+# Required when action=quarantine: directory where suspicious files are moved.
+quarantine_dir: /var/quarantine
+
+# When true, log what would happen but do not modify any files.
+dry_run: false
+
+# When false (default), symlinks found in watched directories are ignored.
+# Set to true to process symlinks as regular files.
+allow_symlinks: false
