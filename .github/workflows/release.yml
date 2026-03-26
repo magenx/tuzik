@@ -1,49 +1,72 @@
-name: Release
+name: Pre-release and Release
 
 on:
   push:
-   branches:
+    branches: 
       - main
-   paths-ignore:
+    paths-ignore:
       - '.github/**'
       - 'config.yaml'
       - 'README.md'
+      - 'CODE_OF_CONDUCT.md'
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
+  repository-projects: read
+  actions: read
+  
+env:
+  PRERELEASE_CONFIG: ".github/release/prerelease-config.json"
+  PRERELEASE_MANIFEST: ".github/release/prerelease-manifest.json"
+  RELEASE_CONFIG: ".github/release/config.json"
+  RELEASE_MANIFEST: ".github/release/manifest.json"
+
+concurrency:
+  group: release
 
 jobs:
-  build-and-release:
+
+  pre-release:
+    name: Create pre-release PR
     runs-on: ubuntu-latest
-
+    outputs:
+      releases_created: ${{ steps.pre-release.outputs.releases_created }}
+      tag_name: ${{ steps.pre-release.outputs.tag_name }}
+      prs_created: ${{ steps.pre-release.outputs.prs_created }}
+      pr: ${{ steps.pre-release.outputs.pr }}
+      upload_url: ${{ steps.pre-release.outputs.upload_url }}
+      version: ${{ steps.pre-release.outputs.version }}
+      sha: ${{ steps.pre-release.outputs.sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
-
-      - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 #v6.3.0
-        with:
-          go-version-file: go.mod
-
-      - name: Build
-        run: make build
-
-      - name: Create test tag
-        id: tag
-        run: |
-          TAG="v0.0.0-$(date +%Y%m%d%H%M%S)"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG"
-          git push origin "$TAG"
-          echo "name=$TAG" >> "$GITHUB_OUTPUT"
-
       - name: Create pre-release
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe #v2.6.1
+        id: pre-release
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 #v4.4.0
         with:
-          tag_name: ${{ steps.tag.outputs.name }}
-          prerelease: true
-          files: ./tuzik
-          generate_release_notes: true
-          overwrite_files: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.TUZIK_TOKEN }}
+          config-file: ${{ env.PRERELEASE_CONFIG }}
+          manifest-file: ${{ env.PRERELEASE_MANIFEST }}
+
+  release:
+    name: Publish pre-release then release PR
+    if: ${{ needs.pre-release.outputs.releases_created == 'true' && contains(needs.pre-release.outputs.tag_name, vars.PRERELEASE_TYPE) }}
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
+      pr: ${{ steps.release.outputs.pr }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      version: ${{ steps.release.outputs.version }}
+      sha: ${{ steps.release.outputs.sha }}
+    needs: pre-release
+    steps:
+      - name: Create release PR
+        id: release
+        if: ${{ always() }}
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 #v4.4.0
+        with:
+          token: ${{ secrets.TUZIK_TOKEN }}
+          config-file: ${{ env.RELEASE_CONFIG }}
+          manifest-file: ${{ env.RELEASE_MANIFEST }}
