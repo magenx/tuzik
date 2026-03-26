@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// ---- Config tests ----
+// --- Config tests ---
 
 func TestLoadConfigValid(t *testing.T) {
 	yaml := `
@@ -664,9 +664,9 @@ func TestEvaluateItem1CreateTriggersAction(t *testing.T) {
 	}
 
 	cfg := &Config{
-		AuditKey:  "tuzik",
+		AuditKey:   "tuzik",
 		WatchPaths: []string{dir},
-		Action:    "delete",
+		Action:     "delete",
 	}
 	h := NewEventHandler(cfg)
 
@@ -699,9 +699,9 @@ func TestEvaluateParentOnlyDoesNotTriggerAction(t *testing.T) {
 	dir := t.TempDir()
 
 	cfg := &Config{
-		AuditKey:  "tuzik",
+		AuditKey:   "tuzik",
 		WatchPaths: []string{dir},
-		Action:    "delete",
+		Action:     "delete",
 	}
 	h := NewEventHandler(cfg)
 
@@ -725,14 +725,14 @@ func TestSanitizeComponent(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"php-fpm83", "php-fpm83"},       // safe: alphanumeric + hyphen
-		{"1001", "1001"},                 // safe: numeric uid
-		{"", "_"},                        // empty → underscore
+		{"php-fpm83", "php-fpm83"},               // safe: alphanumeric + hyphen
+		{"1001", "1001"},                         // safe: numeric uid
+		{"", "_"},                                // empty → underscore
 		{"../../etc/passwd", ".._.._etc_passwd"}, // slashes replaced; dots are safe in filename
-		{"bad/comm", "bad_comm"},         // slash replaced
-		{"with space", "with_space"},     // space replaced
-		{"safe_name.1", "safe_name.1"},   // underscore + dot OK
-		{"UPPER", "UPPER"},               // uppercase OK
+		{"bad/comm", "bad_comm"},                 // slash replaced
+		{"with space", "with_space"},             // space replaced
+		{"safe_name.1", "safe_name.1"},           // underscore + dot OK
+		{"UPPER", "UPPER"},                       // uppercase OK
 	}
 	for _, tc := range tests {
 		got := sanitizeComponent(tc.input)
