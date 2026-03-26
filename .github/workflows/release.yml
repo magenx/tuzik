@@ -54,6 +54,7 @@ jobs:
     uses: ./.github/workflows/build_for_release.yml
     with:
       tag_name: ${{ needs.pre-release.outputs.tag_name }}
+      sha: ${{ needs.pre-release.outputs.sha }}
     secrets:
       TUZIK_TOKEN: ${{ secrets.TUZIK_TOKEN }}
 
@@ -100,6 +101,7 @@ jobs:
     uses: ./.github/workflows/build_for_release.yml
     with:
       tag_name: ${{ needs.release.outputs.tag_name }}
+      sha: ${{ needs.release.outputs.sha }}
     secrets:
       TUZIK_TOKEN: ${{ secrets.TUZIK_TOKEN }}
 
