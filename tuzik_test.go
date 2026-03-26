@@ -228,7 +228,7 @@ func TestAudispFormatPathFieldParsing(t *testing.T) {
 // formatted lines to it, and verifies that SocketListener correctly parses
 // them into AuditEvent values.
 func TestSocketListenerReadEvent(t *testing.T) {
-	dir := t.TempDir()
+	dir := tempSocketDir(t)
 	socketPath := filepath.Join(dir, "audispd_events.sock")
 
 	ln, err := net.Listen("unix", socketPath)
@@ -292,7 +292,7 @@ func TestSocketListenerReadEvent(t *testing.T) {
 
 // TestSocketListenerClose verifies that Close unblocks a pending ReadEvent.
 func TestSocketListenerClose(t *testing.T) {
-	dir := t.TempDir()
+	dir := tempSocketDir(t)
 	socketPath := filepath.Join(dir, "close_test.sock")
 
 	ln, err := net.Listen("unix", socketPath)
@@ -776,6 +776,21 @@ func TestQuarantineFileSanitizesCommUID(t *testing.T) {
 }
 
 // --- Helpers ---
+
+// tempSocketDir creates a short temporary directory for Unix domain socket
+// files.  On macOS the kernel rejects socket paths longer than 104 bytes;
+// t.TempDir() embeds the full test name and can exceed that limit.  Using
+// os.MkdirTemp("", …) creates the directory directly under os.TempDir()
+// without the test-name component, keeping the resulting path short.
+func tempSocketDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "tz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	return dir
+}
 
 func writeTempYAML(t *testing.T, content string) string {
 	t.Helper()
