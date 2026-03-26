@@ -2,6 +2,7 @@ BINARY   := tuzik
 PREFIX   ?= /usr/local
 SBINDIR  ?= $(PREFIX)/sbin
 CONFDIR  ?= /etc/tuzik
+UNITDIR  ?= /lib/systemd/system
 
 GO       := go
 GOFLAGS  := -trimpath
@@ -19,10 +20,12 @@ build:
 install: build
 	install -D -m 0750 $(BINARY) $(DESTDIR)$(SBINDIR)/$(BINARY)
 	install -D -m 0640 config.yaml $(DESTDIR)$(CONFDIR)/config.yaml
+	install -D -m 0644 tuzik.service $(DESTDIR)$(UNITDIR)/tuzik.service
 
 uninstall:
 	rm -f $(DESTDIR)$(SBINDIR)/$(BINARY)
 	rm -rf $(DESTDIR)$(CONFDIR)
+	rm -f $(DESTDIR)$(UNITDIR)/tuzik.service
 
 test:
 	$(GO) test -v ./...

@@ -1,0 +1,47 @@
+[Unit]
+Description=Tuzik (Go daemon that reads audit events)
+After=network.target auditd.service
+Wants=auditd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/tuzik --config /etc/tuzik/config.yaml
+Restart=always
+RestartSec=2
+
+User=root
+Group=root
+
+StandardOutput=journal
+StandardError=journal
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+SystemCallArchitectures=native
+
+# Make everything read-only by default
+ProtectSystem=strict
+
+# Allow write only where tuzik needs to act.
+# Adjust these paths to match watch_paths and quarantine_dir in /etc/tuzik/config.yaml.
+ReadWritePaths=/home/magento/public_html/pub/media
+ReadWritePaths=/home/magento/public_html/pub/static
+ReadWritePaths=/var/tuzik/quarantine
+
+# Allow reading config
+ReadOnlyPaths=/etc/tuzik/config.yaml
+
+# Make /home read-only except the above write paths
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
