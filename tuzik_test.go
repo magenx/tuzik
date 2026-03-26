@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// ---- Config tests ----
+// --- Config tests ---
 
 func TestLoadConfigValid(t *testing.T) {
 	yaml := `
