@@ -83,7 +83,7 @@ jobs:
           echo "Building ${BINARY_NAME_ARCH} with version ${VERSION}"
 
           go build -ldflags "-X version.Version=${VERSION} -s -w" \
-            -o "${BINARY_NAME_ARCH}" ./${GITHUB_REPOSITORY##*/}
+            -o "${BINARY_NAME_ARCH}" .
 
           if [ ! -f "${BINARY_NAME_ARCH}" ]; then
             echo "Error: Build failed. Binary not found!"
