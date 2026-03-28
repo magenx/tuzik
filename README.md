@@ -11,6 +11,18 @@ This is the same transport used by SIEM systems: `audispd` dispatches fully-form
 audit records over the socket so tuzik requires no direct kernel access and no special
 capabilities beyond read permission on the socket.
 
+Why I adopted Tuzik  
+
+Most security tools wait for the post-mortem. By then, the damage is done.
+I wanted something different. Something that acts instantly. That’s why I brought Tuzik into my stack.
+Tuzik isn’t your average guard dog. He’s built on a philosophy of immutable loyalty and real-time action:
+- Immutable & Lockdown System – Tuzik is loyal only to his master. No exceptions.
+- Strict Configuration-Based Logic – You tell him who, what, and where. He handles the rest.
+- Kernel Audit Events – The moment something changes, Tuzik listens. He makes event-based decisions to instantly quarantine, delete, or restore files.
+- Zero Tolerance for Tampering – You won’t even execute a modified file. That’s how fast the kernel audit event is processed.
+- No More "Post-Mortem" Panic – No waiting 5 hours for a security scan while customer data is already being exfiltrated. Tuzik acts now.
+- Ignore the Noise – He doesn’t care about hashes, heuristics, or training patterns. He simply executes the policy: “Just do it.”
+
 ## Requirements
 
 | Dependency | Version |
