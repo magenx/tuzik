@@ -42,3 +42,24 @@ dry_run: false
 # When false (default), symlinks found in watched directories are ignored.
 # Set to true to process symlinks as regular files.
 allow_symlinks: false
+
+# Absolute path to the Magento project root directory.
+# Required when maintenance=enable.
+project_root: /home/magento/public_html
+
+# Enable or disable maintenance mode on file quarantine/delete actions.
+# When enabled, tuzik creates <project_root>/var/.maintenance.flag which causes
+# Magento to return a 503 maintenance page, preventing customer exposure while
+# the incident is investigated.
+# Supported values: enable | disable
+maintenance: disable
+
+# Enable or disable EcomScan security audits triggered by maintenance mode.
+# Requires maintenance=enable. When enabled, tuzik runs:
+#   ecomscan --skip-dashboard --newonly --state-file <ecomscan_state_dir>/ecomscan <project_root>
+# Supported values: enable | disable
+ecomscan: disable
+
+# Optional: directory for the ecomscan state file.
+# Default: /var/log/tuzik
+# ecomscan_state_dir: /var/log/tuzik

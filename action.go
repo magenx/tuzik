@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 )
@@ -55,12 +56,26 @@ func (a *FileAction) Execute(path string, ctx *FileContext) error {
 
 	switch a.cfg.Action {
 	case "delete":
-		return a.deleteFile(absPath)
+		err = a.deleteFile(absPath)
 	case "quarantine":
-		return a.quarantineFile(absPath, ctx)
+		err = a.quarantineFile(absPath, ctx)
 	default:
 		return fmt.Errorf("unknown action %q", a.cfg.Action)
 	}
+	if err != nil {
+		return err
+	}
+
+	// Trigger active mitigation after a successful non-dry-run action.
+	if !a.cfg.DryRun && a.cfg.Maintenance == "enable" {
+		if mErr := a.enableMaintenance(); mErr != nil {
+			log.Printf("[tuzik] maintenance flag error: %v", mErr)
+		}
+		if a.cfg.Ecomscan == "enable" {
+			go a.runEcomscan()
+		}
+	}
+	return nil
 }
 
 // deleteFile removes the file at absPath.
@@ -157,4 +172,51 @@ func sanitizeComponent(s string) string {
 		}
 	}
 	return string(out)
+}
+
+// enableMaintenance creates the Magento maintenance flag file so that the
+// storefront returns a 503 maintenance page while the incident is being
+// investigated, preventing customer exposure to compromised pages.
+func (a *FileAction) enableMaintenance() error {
+	flagDir := filepath.Join(a.cfg.ProjectRoot, "var")
+	if err := os.MkdirAll(flagDir, 0o755); err != nil {
+		return fmt.Errorf("creating maintenance flag dir %q: %w", flagDir, err)
+	}
+	flagPath := filepath.Join(flagDir, ".maintenance.flag")
+	f, err := os.OpenFile(flagPath, os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("creating maintenance flag %q: %w", flagPath, err)
+	}
+	_ = f.Close()
+	log.Printf("[tuzik] maintenance flag set: %s", flagPath)
+	return nil
+}
+
+// runEcomscan launches ecomscan for a full security audit of the project root.
+// It is invoked in a goroutine so that the event handler continues processing
+// events while the (potentially long-running) scan executes.
+// Errors are logged but do not propagate to the caller — ecomscan availability
+// is not guaranteed on all systems.
+func (a *FileAction) runEcomscan() {
+	stateFile := filepath.Join(a.cfg.EcomscanStateDir, "ecomscan")
+	log.Printf("[tuzik] starting ecomscan audit on %s", a.cfg.ProjectRoot)
+	// #nosec G204 — ProjectRoot and EcomscanStateDir originate from the
+	// operator-controlled config file, not from untrusted user input.
+	cmd := exec.Command("ecomscan",
+		"--skip-dashboard", "--newonly",
+		"--state-file", stateFile,
+		a.cfg.ProjectRoot,
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("[tuzik] ecomscan error: %v", err)
+		if len(out) > 0 {
+			log.Printf("[tuzik] ecomscan output: %s", out)
+		}
+		return
+	}
+	log.Printf("[tuzik] ecomscan completed on %s", a.cfg.ProjectRoot)
+	if len(out) > 0 {
+		log.Printf("[tuzik] ecomscan output: %s", out)
+	}
 }

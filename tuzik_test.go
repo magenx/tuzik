@@ -775,6 +775,316 @@ func TestQuarantineFileSanitizesCommUID(t *testing.T) {
 	}
 }
 
+// --- Maintenance and EcomScan tests ---
+
+func TestLoadConfigMaintenanceFields(t *testing.T) {
+	projectRoot := t.TempDir()
+	yaml := `
+audit_key: "k"
+watch_paths: [/tmp/watch]
+action: delete
+project_root: "` + projectRoot + `"
+maintenance: enable
+ecomscan: enable
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.ProjectRoot != projectRoot {
+		t.Errorf("project_root: got %q, want %q", cfg.ProjectRoot, projectRoot)
+	}
+	if cfg.Maintenance != "enable" {
+		t.Errorf("maintenance: got %q, want \"enable\"", cfg.Maintenance)
+	}
+	if cfg.Ecomscan != "enable" {
+		t.Errorf("ecomscan: got %q, want \"enable\"", cfg.Ecomscan)
+	}
+	if cfg.EcomscanStateDir != defaultEcomscanStateDir {
+		t.Errorf("ecomscan_state_dir default: got %q, want %q", cfg.EcomscanStateDir, defaultEcomscanStateDir)
+	}
+}
+
+func TestValidateMaintenanceRequiresProjectRoot(t *testing.T) {
+	cfg := &Config{
+		AuditKey:    "k",
+		WatchPaths:  []string{"/tmp"},
+		Action:      "delete",
+		Maintenance: "enable",
+		// ProjectRoot intentionally empty
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error when maintenance=enable and project_root is empty")
+	}
+}
+
+func TestValidateEcomscanRequiresMaintenance(t *testing.T) {
+	cfg := &Config{
+		AuditKey:    "k",
+		WatchPaths:  []string{"/tmp"},
+		Action:      "delete",
+		ProjectRoot: "/tmp/shop",
+		Maintenance: "disable",
+		Ecomscan:    "enable",
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error when ecomscan=enable and maintenance!=enable")
+	}
+}
+
+func TestValidateBadMaintenanceValue(t *testing.T) {
+	cfg := &Config{
+		AuditKey:    "k",
+		WatchPaths:  []string{"/tmp"},
+		Action:      "delete",
+		Maintenance: "yes",
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for invalid maintenance value")
+	}
+}
+
+func TestValidateBadEcomscanValue(t *testing.T) {
+	cfg := &Config{
+		AuditKey:    "k",
+		WatchPaths:  []string{"/tmp"},
+		Action:      "delete",
+		ProjectRoot: "/tmp/shop",
+		Maintenance: "enable",
+		Ecomscan:    "yes",
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for invalid ecomscan value")
+	}
+}
+
+func TestValidateMaintenanceDisabledNoProjectRoot(t *testing.T) {
+	cfg := &Config{
+		AuditKey:    "k",
+		WatchPaths:  []string{"/tmp"},
+		Action:      "delete",
+		Maintenance: "disable",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("unexpected error when maintenance=disable: %v", err)
+	}
+}
+
+// TestMaintenanceFlagCreatedAfterDelete verifies that a .maintenance.flag file
+// is created inside <project_root>/var/ when an action succeeds and
+// maintenance=enable.
+func TestMaintenanceFlagCreatedAfterDelete(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := t.TempDir()
+	target := filepath.Join(dir, "malware.php")
+	if err := os.WriteFile(target, []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		AuditKey:    "k",
+		WatchPaths:  []string{dir},
+		Action:      "delete",
+		ProjectRoot: projectRoot,
+		Maintenance: "enable",
+	}
+	fa := NewFileAction(cfg)
+	if err := fa.Execute(target, nil); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	flagPath := filepath.Join(projectRoot, "var", ".maintenance.flag")
+	if _, err := os.Stat(flagPath); err != nil {
+		t.Errorf("maintenance flag not found at %s: %v", flagPath, err)
+	}
+}
+
+// TestMaintenanceFlagCreatedAfterQuarantine verifies that the maintenance flag
+// is set after a quarantine action as well.
+func TestMaintenanceFlagCreatedAfterQuarantine(t *testing.T) {
+	dir := t.TempDir()
+	qdir := t.TempDir()
+	projectRoot := t.TempDir()
+	target := filepath.Join(dir, "shell.php")
+	if err := os.WriteFile(target, []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		AuditKey:      "k",
+		WatchPaths:    []string{dir},
+		Action:        "quarantine",
+		QuarantineDir: qdir,
+		ProjectRoot:   projectRoot,
+		Maintenance:   "enable",
+	}
+	fa := NewFileAction(cfg)
+	if err := fa.Execute(target, nil); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	flagPath := filepath.Join(projectRoot, "var", ".maintenance.flag")
+	if _, err := os.Stat(flagPath); err != nil {
+		t.Errorf("maintenance flag not found at %s: %v", flagPath, err)
+	}
+}
+
+// TestMaintenanceFlagSkippedInDryRun verifies that the maintenance flag is NOT
+// created when dry_run=true.
+func TestMaintenanceFlagSkippedInDryRun(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := t.TempDir()
+	target := filepath.Join(dir, "malware.php")
+	if err := os.WriteFile(target, []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		AuditKey:    "k",
+		WatchPaths:  []string{dir},
+		Action:      "delete",
+		DryRun:      true,
+		ProjectRoot: projectRoot,
+		Maintenance: "enable",
+	}
+	fa := NewFileAction(cfg)
+	if err := fa.Execute(target, nil); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	flagPath := filepath.Join(projectRoot, "var", ".maintenance.flag")
+	if _, err := os.Stat(flagPath); !os.IsNotExist(err) {
+		t.Errorf("maintenance flag should not be created in dry-run mode")
+	}
+}
+
+// TestMaintenanceFlagIdempotent verifies that creating the flag twice does not
+// return an error (idempotent operation).
+func TestMaintenanceFlagIdempotent(t *testing.T) {
+	projectRoot := t.TempDir()
+	cfg := &Config{ProjectRoot: projectRoot}
+	fa := NewFileAction(cfg)
+
+	if err := fa.enableMaintenance(); err != nil {
+		t.Fatalf("first enableMaintenance: %v", err)
+	}
+	if err := fa.enableMaintenance(); err != nil {
+		t.Fatalf("second enableMaintenance: %v", err)
+	}
+
+	flagPath := filepath.Join(projectRoot, "var", ".maintenance.flag")
+	if _, err := os.Stat(flagPath); err != nil {
+		t.Errorf("maintenance flag not found: %v", err)
+	}
+}
+
+// TestEcomscanRunAfterAction verifies that when ecomscan=enable the configured
+// binary is invoked with the correct arguments.  A fake "ecomscan" script is
+// placed on PATH; it records its arguments to a sentinel file.
+func TestEcomscanRunAfterAction(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := t.TempDir()
+	target := filepath.Join(dir, "malware.php")
+	if err := os.WriteFile(target, []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Build a fake ecomscan that writes its arguments to a file.
+	scriptDir := t.TempDir()
+	argsFile := filepath.Join(scriptDir, "args.txt")
+	script := fmt.Sprintf("#!/bin/sh\necho \"$@\" > %s\n", argsFile)
+	scriptPath := filepath.Join(scriptDir, "ecomscan")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", scriptDir+":"+os.Getenv("PATH"))
+
+	cfg := &Config{
+		AuditKey:         "k",
+		WatchPaths:       []string{dir},
+		Action:           "delete",
+		ProjectRoot:      projectRoot,
+		Maintenance:      "enable",
+		Ecomscan:         "enable",
+		EcomscanStateDir: scriptDir,
+	}
+	fa := NewFileAction(cfg)
+	if err := fa.Execute(target, nil); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	// Give the goroutine time to write the sentinel file.
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(argsFile); err == nil {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	data, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatalf("ecomscan was not invoked (args file not found): %v", err)
+	}
+	got := strings.TrimSpace(string(data))
+	if !strings.Contains(got, "--skip-dashboard") {
+		t.Errorf("expected --skip-dashboard in args, got %q", got)
+	}
+	if !strings.Contains(got, "--newonly") {
+		t.Errorf("expected --newonly in args, got %q", got)
+	}
+	if !strings.Contains(got, "--state-file") {
+		t.Errorf("expected --state-file in args, got %q", got)
+	}
+	if !strings.Contains(got, scriptDir) {
+		t.Errorf("expected ecomscan_state_dir %q in --state-file arg, got %q", scriptDir, got)
+	}
+	if !strings.Contains(got, projectRoot) {
+		t.Errorf("expected project_root %q in args, got %q", projectRoot, got)
+	}
+}
+
+// TestEcomscanNotInvokedWhenDisabled verifies that the ecomscan binary is NOT
+// called when ecomscan=disable (default).
+func TestEcomscanNotInvokedWhenDisabled(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := t.TempDir()
+	target := filepath.Join(dir, "malware.php")
+	if err := os.WriteFile(target, []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Place a sentinel-writing fake ecomscan on PATH.
+	scriptDir := t.TempDir()
+	argsFile := filepath.Join(scriptDir, "args.txt")
+	script := fmt.Sprintf("#!/bin/sh\necho \"$@\" > %s\n", argsFile)
+	scriptPath := filepath.Join(scriptDir, "ecomscan")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", scriptDir+":"+os.Getenv("PATH"))
+
+	cfg := &Config{
+		AuditKey:    "k",
+		WatchPaths:  []string{dir},
+		Action:      "delete",
+		ProjectRoot: projectRoot,
+		Maintenance: "enable",
+		Ecomscan:    "disable",
+	}
+	fa := NewFileAction(cfg)
+	if err := fa.Execute(target, nil); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	// Brief wait to be sure the goroutine (if mistakenly started) would have run.
+	time.Sleep(100 * time.Millisecond)
+
+	if _, err := os.Stat(argsFile); !os.IsNotExist(err) {
+		t.Error("ecomscan should not have been invoked when ecomscan=disable")
+	}
+}
+
 // --- Helpers ---
 
 // tempSocketDir creates a short temporary directory for Unix domain socket
