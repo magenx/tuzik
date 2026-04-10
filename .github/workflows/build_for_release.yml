@@ -29,30 +29,8 @@ concurrency:
 
 jobs:
   build-release:
-    name: Build Go Binary - ${{ matrix.os }}-${{ matrix.arch }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: linux
-            arch: amd64
-            runner: ubuntu-latest
-            goos: linux
-            goarch: amd64
-          - os: linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            goos: linux
-            goarch: arm64
-          - os: darwin
-            arch: arm64
-            runner: macos-latest
-            goos: darwin
-            goarch: arm64
-    env:
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
+    name: Build Go Binary
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code at release sha
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -68,6 +46,7 @@ jobs:
 
       - name: Run all tests
         id: test
+        shell: bash
         env:
           CGO_ENABLED: 1
         run: |
@@ -75,26 +54,35 @@ jobs:
 
       - name: Build go binary
         id: build
+        shell: bash
         env:
           CGO_ENABLED: 0
         run: |
+          set -euo pipefail
+          
           VERSION="${{ inputs.tag_name }}"
-
-          BINARY_NAME_ARCH="${GITHUB_REPOSITORY##*/}-${{ matrix.os }}-${{ matrix.arch }}"
-          echo "binary_name_arch=${GITHUB_REPOSITORY##*/}-${{ matrix.os }}-${{ matrix.arch }}" >> ${GITHUB_OUTPUT}
-          echo "binary_name=${GITHUB_REPOSITORY##*/}" >> ${GITHUB_OUTPUT}
-
-          echo "Building ${BINARY_NAME_ARCH} with version ${VERSION}"
-
-          go build -ldflags "-X github.com/magenx/tuzik/version.Version=${VERSION} -s -w" \
-            -o "${BINARY_NAME_ARCH}" .
-
-          if [ ! -f "${BINARY_NAME_ARCH}" ]; then
-            echo "Error: Build failed. Binary not found!"
-            exit 1
-          fi
-
-          echo "checksum=$(sha256sum ${BINARY_NAME_ARCH})" >> ${GITHUB_OUTPUT}
+          
+          targets=(
+            "linux amd64"
+            "linux arm64"
+          )
+          
+          for target in "${targets[@]}"; do
+            read -r GOOS GOARCH <<<"${target}"
+          
+            BINARY_NAME_ARCH="${{ github.event.repository.name }}-${GOOS}-${GOARCH}"
+            
+            echo "==> Building ${BINARY_NAME_ARCH} (GOOS=${GOOS} GOARCH=${GOARCH}) version=${VERSION}"
+            GOOS="${GOOS}" GOARCH="${GOARCH}" \
+            go build -ldflags "-X github.com/magenx/${{ github.event.repository.name }}/pkg/version.Version=${VERSION} -s -w" \
+            -o "${BINARY_NAME_ARCH}" "./cmd/${{ github.event.repository.name }}"
+          
+            if [ ! -f "${BINARY_NAME_ARCH}" ]; then
+              echo "Error: Build failed. Binary not found!"
+              exit 1
+            fi
+            echo "${GOARCH}_checksum=$(sha256sum ${BINARY_NAME_ARCH})" >> ${GITHUB_OUTPUT}
+          done
 
       - name: Upload artifacts to GitHub Release (still draft at this point)
         id: upload-artifact
@@ -103,20 +91,34 @@ jobs:
           token: ${{ secrets.TUZIK_TOKEN }}
           tag_name: ${{ inputs.tag_name }}
           files: |
-            ${{ steps.build.outputs.binary_name_arch }}
+            ${{ github.event.repository.name }}-*
           draft: true
           prerelease: ${{ inputs.prerelease }}
           append_body: true
           body: |
             <details>
-            <summary>Installation for <strong>${{ matrix.os }} (${{ matrix.arch }})</strong></summary>
+            <summary>Installation for <strong>Linux (amd64)</strong></summary>
             <pre><code>
-            curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}/${{ steps.build.outputs.binary_name_arch }}
-            if echo "${{ steps.build.outputs.checksum }}" | sha256sum -c; then
+            curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}/${{ github.event.repository.name }}-linux-amd64
+            if echo "${{ steps.build.outputs.amd64_checksum }}" | sha256sum -c; then
               echo "Verification passed"
-              chmod +x ${{ steps.build.outputs.binary_name_arch }}
-              mv ${{ steps.build.outputs.binary_name_arch }} /usr/local/sbin/${{ steps.build.outputs.binary_name }}
-              ${{ steps.build.outputs.binary_name }} version
+              chmod +x ${{ github.event.repository.name }}
+              mv ${{ github.event.repository.name }}-linux-amd64 /usr/local/sbin/${{ github.event.repository.name }}
+              ${{ github.event.repository.name }} version
+            else
+              echo "Verification failed"
+            fi
+            </code></pre>
+            </details>
+            <details>
+            <summary>Installation for <strong>Linux (arm64)</strong></summary>
+            <pre><code>
+            curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}/${{ github.event.repository.name }}-linux-arm64
+            if echo "${{ steps.build.outputs.arm64_checksum }}" | sha256sum -c; then
+              echo "Verification passed"
+              chmod +x ${{ github.event.repository.name }}
+              mv ${{ github.event.repository.name }}-linux-arm64 /usr/local/sbin/${{ github.event.repository.name }}
+              ${{ github.event.repository.name }} version
             else
               echo "Verification failed"
             fi
