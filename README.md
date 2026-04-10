@@ -86,6 +86,9 @@ Copy `config.yaml` to `/etc/tuzik/config.yaml` and edit it:
 ```yaml
 # tuzik configuration
 
+# When true, log what would happen but do not modify any files.
+dry_run: false
+
 # Path to the audisp-af_unix Unix domain socket created by the audispd plugin.
 # Default: /var/run/audispd_events
 socket_path: /var/run/audispd_events
@@ -93,6 +96,27 @@ socket_path: /var/run/audispd_events
 # Audit key used to identify relevant events.
 # Must match the -k value used in your auditd rules.
 audit_key: "tuzik"
+
+# Absolute path to the Magento project root directory.
+# Required when maintenance=enable.
+project_root: /home/magento/public_html
+
+# Enable or disable maintenance mode on file quarantine/delete actions.
+# When enabled, tuzik creates <project_root>/var/.maintenance.flag which causes
+# Magento to return a 503 maintenance page, preventing customer exposure while
+# the incident is investigated.
+# Supported values: enable | disable
+maintenance: disable
+
+# Enable or disable EcomScan security audits triggered by maintenance mode.
+# Requires maintenance=enable. When enabled, tuzik runs:
+# ecomscan --skip-dashboard --newonly --state-file <ecomscan_state_dir>/ecomscan <project_root>
+# Supported values: enable | disable
+ecomscan: disable
+
+# Optional: directory for the ecomscan state file.
+# Default: /var/log/tuzik
+# ecomscan_state_dir: /var/log/tuzik
 
 # Paths to watch for file-creation / write events.
 # tuzik reacts to PATH records in audit events whose key matches audit_key
@@ -115,15 +139,17 @@ filenames: []
 extensions:
   - .php
 
+# Tuzik can be set to "angry mode", where it recursively monitors the entire project path for any file changes. 
+# This mode is only functional in Magento atomic deployments running in production mode, 
+# and it requires that correct read-only permissions and ACLs are properly configured. 
+# It operates under the condition that PHP only reads files (there are no write operations between deployments).
+
 # Action to perform when a matching file is detected.
 # Supported values: delete | quarantine
 action: quarantine
 
 # Required when action=quarantine: directory where suspicious files are moved.
-quarantine_dir: /var/quarantine
-
-# When true, log what would happen but do not modify any files.
-dry_run: false
+quarantine_dir: /var/log/tuzik/quarantine
 
 # When false (default), symlinks found in watched directories are ignored.
 # Set to true to process symlinks as regular files.
