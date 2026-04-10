@@ -74,8 +74,8 @@ jobs:
             
             echo "==> Building ${BINARY_NAME_ARCH} (GOOS=${GOOS} GOARCH=${GOARCH}) version=${VERSION}"
             GOOS="${GOOS}" GOARCH="${GOARCH}" \
-            go build -ldflags "-X github.com/magenx/${{ github.event.repository.name }}/pkg/version.Version=${VERSION} -s -w" \
-            -o "${BINARY_NAME_ARCH}" "./cmd/${{ github.event.repository.name }}"
+            go build -ldflags "-X github.com/magenx/tuzik/version.Version=${VERSION} -s -w" \
+            -o "${BINARY_NAME_ARCH}" .
           
             if [ ! -f "${BINARY_NAME_ARCH}" ]; then
               echo "Error: Build failed. Binary not found!"
