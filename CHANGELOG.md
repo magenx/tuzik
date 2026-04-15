@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/magenx/tuzik/compare/v0.1.0...v0.1.1) (2026-04-15)
+
+
+### 🚦 Maintenance
+
+* **main:** tuzik 0.2.0-rc ([#50](https://github.com/magenx/tuzik/issues/50)) ([6f6d3e2](https://github.com/magenx/tuzik/commit/6f6d3e2bb9a5951bc8dbb21d90a356d81f42b689))
+
 ## [0.2.0-rc](https://github.com/magenx/tuzik/compare/v0.1.0...v0.2.0-rc) (2026-04-15)
 
 
