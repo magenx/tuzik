@@ -39,7 +39,7 @@ jobs:
     steps:
       - name: Create pre-release
         id: pre_release
-        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
         with:
           token: ${{ secrets.TUZIK_TOKEN }}
           config-file: ${{ env.PRERELEASE_CONFIG }}
@@ -67,18 +67,19 @@ jobs:
       TUZIK_TOKEN: ${{ secrets.TUZIK_TOKEN }}
 
   publish_prerelease:
-    name: Publish prerelease (draft -> published)
+    name: Publish pre-release (draft -> published)
     needs: [pre_release, build_prerelease]
     if: ${{ needs.pre_release.outputs.releases_created == 'true' && contains(needs.pre_release.outputs.tag_name, vars.PRERELEASE_TYPE) }}
     runs-on: ubuntu-latest
     steps:
-      - name: Mark prerelease as published
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        with:
-          token: ${{ secrets.TUZIK_TOKEN }}
-          tag_name: ${{ needs.pre_release.outputs.tag_name }}
-          draft: false
-          prerelease: true
+      - name: Mark pre-release as published
+        env:
+          GH_TOKEN: ${{ secrets.TUZIK_TOKEN }}
+        run: |
+          gh release edit "${{ needs.pre_release.outputs.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false \
+            --prerelease
 
   release:
     name: Create release PR + draft stable release
@@ -96,11 +97,24 @@ jobs:
     steps:
       - name: Create release PR
         id: release
-        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
         with:
           token: ${{ secrets.TUZIK_TOKEN }}
           config-file: ${{ env.RELEASE_CONFIG }}
           manifest-file: ${{ env.RELEASE_MANIFEST }}
+
+  osv_scan:
+    name: Google osv-scanner
+    needs: pre_release
+    if: ${{ needs.pre_release.outputs.releases_created == 'true' && !contains(needs.pre_release.outputs.tag_name, vars.PRERELEASE_TYPE) }}
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@c51854704019a247608d928f370c98740469d4b5 # v2.3.5
+    with:
+      scan-args: |-
+        ./
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
 
   build_release:
     name: Build & upload artifacts to stable release draft
@@ -121,9 +135,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Mark stable release as published
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        with:
-          token: ${{ secrets.TUZIK_TOKEN }}
-          tag_name: ${{ needs.pre_release.outputs.tag_name }}
-          draft: false
-          prerelease: false
+        env:
+          GH_TOKEN: ${{ secrets.TUZIK_TOKEN }}
+        run: |
+          gh release edit "${{ needs.pre_release.outputs.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false \
+            --prerelease=false
