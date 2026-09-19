@@ -1,5 +1,5 @@
 # tuzik
-<img width="122" height="122" alt="tuzik" src="https://github.com/user-attachments/assets/c336567f-08f6-4d10-90b0-a4854addacdc" />
+<img width="122" height="122" alt="tuzik_guard" src="https://github.com/user-attachments/assets/84c411e6-6592-4efb-bf1a-7116479f264c" />
 
 A little daemon doggy shepherd that watches over your backyard and protects you from intruders. 
   
