@@ -154,6 +154,12 @@ func TestParseLineKnownTypes(t *testing.T) {
 			true,
 		},
 		{
+			`type=CWD msg=audit(1712000000.001:42): cwd="/var/www/uploads"`,
+			AuditTypeCwd,
+			`audit(1712000000.001:42):`,
+			true,
+		},
+		{
 			`type=EOE msg=audit(1712000000.001:42):`,
 			AuditTypeEOE,
 			`audit(1712000000.001:42):`,
@@ -1113,4 +1119,131 @@ func writeTempYAML(t *testing.T, content string) string {
 	}
 	f.Close()
 	return f.Name()
+}
+
+// --- relative PATH name resolution (CWD record) tests ---
+
+// TestResolvePath covers the mapping from an audit PATH record name to the
+// absolute path the action layer operates on.
+func TestResolvePath(t *testing.T) {
+	tests := []struct {
+		name   string
+		cwd    string
+		want   string
+		wantOK bool
+	}{
+		// Absolute names are used as-is; cwd is irrelevant.
+		{"/var/www/uploads/shell.php", "/tmp", "/var/www/uploads/shell.php", true},
+		{"/var/www/uploads/./shell.php", "", "/var/www/uploads/shell.php", true},
+		// Relative names are joined onto the event's cwd.
+		{"shell.php", "/var/www/uploads", "/var/www/uploads/shell.php", true},
+		{"./nested/shell.php", "/var/www", "/var/www/nested/shell.php", true},
+		// Join cleans, so traversal resolves to the real location and is then
+		// subject to the watch-path check by the caller.
+		{"../shell.php", "/var/www/uploads", "/var/www/shell.php", true},
+		// Unresolvable: no usable cwd for a relative name.
+		{"shell.php", "", "", false},
+		{"shell.php", "relative/cwd", "", false},
+	}
+	for _, tc := range tests {
+		got, gotOK := resolvePath(tc.name, tc.cwd)
+		if gotOK != tc.wantOK {
+			t.Errorf("resolvePath(%q, %q) ok=%v, want %v", tc.name, tc.cwd, gotOK, tc.wantOK)
+			continue
+		}
+		if gotOK && got != tc.want {
+			t.Errorf("resolvePath(%q, %q) = %q, want %q", tc.name, tc.cwd, got, tc.want)
+		}
+	}
+}
+
+// TestEvaluateRelativeNameWithCwdTriggersAction is the regression test for the
+// reported bug: when the audited process creates a file using a path relative
+// to its own working directory, the kernel records a bare name in the PATH
+// record and the directory in a separate CWD record.  Before the fix the CWD
+// record was dropped as an unrecognised type and the bare name matched no
+// watch path, so nothing at all was logged or acted on.
+func TestEvaluateRelativeNameWithCwdTriggersAction(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "other.php")
+	if err := os.WriteFile(target, []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		AuditKey:   "tuzik",
+		WatchPaths: []string{dir},
+		Extensions: []string{".php"},
+		Action:     "delete",
+	}
+	h := NewEventHandler(cfg)
+
+	serial := "482"
+	h.Process(AuditTypeSyscall, `audit(1789830105.309:`+serial+`): arch=c000003e syscall=257 success=yes key="tuzik"`)
+	h.Process(AuditTypeCwd, `audit(1789830105.309:`+serial+`): cwd="`+dir+`"`)
+	h.Process(AuditTypePath, `audit(1789830105.309:`+serial+`): item=1 name="other.php" nametype=CREATE`)
+	h.Process(AuditTypeEOE, `audit(1789830105.309:`+serial+`):`)
+
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Error("handler did not trigger action for a relative PATH name resolved via the CWD record")
+	}
+}
+
+// TestEvaluateRelativeNameWithoutCwdSkipped verifies that a relative name with
+// no CWD record in the event is skipped rather than resolved against tuzik's
+// own working directory.
+func TestEvaluateRelativeNameWithoutCwdSkipped(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "other.php")
+	if err := os.WriteFile(target, []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		AuditKey:   "tuzik",
+		WatchPaths: []string{dir},
+		Action:     "delete",
+	}
+	h := NewEventHandler(cfg)
+
+	serial := "483"
+	h.Process(AuditTypeSyscall, `audit(1789830105.309:`+serial+`): arch=c000003e syscall=257 success=yes key="tuzik"`)
+	h.Process(AuditTypePath, `audit(1789830105.309:`+serial+`): item=1 name="other.php" nametype=CREATE`)
+	h.Process(AuditTypeEOE, `audit(1789830105.309:`+serial+`):`)
+
+	if _, err := os.Stat(target); err != nil {
+		t.Errorf("unresolvable relative name should have been skipped, but the file is gone: %v", err)
+	}
+}
+
+// TestEvaluateRelativeNameEscapingWatchPathSkipped verifies that a traversing
+// relative name is normalised before the watch-path check, so a file outside
+// the watched directory is not acted on.
+func TestEvaluateRelativeNameEscapingWatchPathSkipped(t *testing.T) {
+	root := t.TempDir()
+	watched := filepath.Join(root, "watched")
+	if err := os.Mkdir(watched, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(root, "outside.php")
+	if err := os.WriteFile(outside, []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		AuditKey:   "tuzik",
+		WatchPaths: []string{watched},
+		Action:     "delete",
+	}
+	h := NewEventHandler(cfg)
+
+	serial := "484"
+	h.Process(AuditTypeSyscall, `audit(1789830105.309:`+serial+`): arch=c000003e syscall=257 success=yes key="tuzik"`)
+	h.Process(AuditTypeCwd, `audit(1789830105.309:`+serial+`): cwd="`+watched+`"`)
+	h.Process(AuditTypePath, `audit(1789830105.309:`+serial+`): item=1 name="../outside.php" nametype=CREATE`)
+	h.Process(AuditTypeEOE, `audit(1789830105.309:`+serial+`):`)
+
+	if _, err := os.Stat(outside); err != nil {
+		t.Errorf("file outside the watch path should not have been acted on: %v", err)
+	}
 }

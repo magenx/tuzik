@@ -60,7 +60,7 @@ func (h *EventHandler) Process(msgType int, text string) {
 			delete(h.groups, serial)
 		}
 		return
-	case AuditTypeSyscall, AuditTypePath, AuditTypeProctitle:
+	case AuditTypeSyscall, AuditTypePath, AuditTypeCwd, AuditTypeProctitle:
 		// fall through
 	default:
 		// Ignore unrelated record types.
@@ -84,12 +84,18 @@ func (h *EventHandler) Process(msgType int, text string) {
 // matches the configured audit key and file criteria.
 func (h *EventHandler) evaluate(g *eventGroup) {
 	// 1. Check that at least one record carries the configured audit key;
-	//    also collect process metadata (comm, uid) from SYSCALL records.
+	//    also collect process metadata (comm, uid) from SYSCALL records and the
+	//    working directory from the CWD record, needed to resolve relative
+	//    PATH names.
 	hasKey := false
+	cwd := ""
 	ctx := &FileContext{}
 	for _, r := range g.records {
 		if k, ok := r.fields["key"]; ok && k == h.cfg.AuditKey {
 			hasKey = true
+		}
+		if r.msgType == AuditTypeCwd && cwd == "" {
+			cwd = r.fields["cwd"]
 		}
 		if r.msgType == AuditTypeSyscall {
 			// Take the first non-empty values encountered.
@@ -119,21 +125,48 @@ func (h *EventHandler) evaluate(g *eventGroup) {
 			continue
 		}
 
-		if !h.matchesWatchPath(name) {
-			continue
-		}
-		if h.matchesIgnorePath(name) {
-			continue
-		}
-		if !h.matchesRules(name) {
+		// Resolve relative names against the event's CWD record before
+		// matching, so a traversing name is normalised away and cannot
+		// escape the watch paths.
+		path, ok := resolvePath(name, cwd)
+		if !ok {
+			log.Printf("[tuzik] skipping unresolvable relative path %q (no cwd record in event %s)", name, g.serial)
 			continue
 		}
 
-		log.Printf("[tuzik] match: %s (key=%s)", name, h.cfg.AuditKey)
-		if err := h.action.Execute(name, ctx); err != nil {
-			log.Printf("[tuzik] action error for %s: %v", name, err)
+		if !h.matchesWatchPath(path) {
+			continue
+		}
+		if h.matchesIgnorePath(path) {
+			continue
+		}
+		if !h.matchesRules(path) {
+			continue
+		}
+
+		log.Printf("[tuzik] match: %s (key=%s)", path, h.cfg.AuditKey)
+		if err := h.action.Execute(path, ctx); err != nil {
+			log.Printf("[tuzik] action error for %s: %v", path, err)
 		}
 	}
+}
+
+// resolvePath returns an absolute, cleaned path for a PATH record name.
+// The kernel records a relative name whenever the audited syscall used one;
+// the process working directory it is relative to is carried in the separate
+// CWD record of the same audit event.
+// Returns ok=false when a relative name cannot be resolved, so the caller
+// skips it rather than resolving it against tuzik's own working directory.
+func resolvePath(name, cwd string) (string, bool) {
+	if filepath.IsAbs(name) {
+		return filepath.Clean(name), true
+	}
+	if !filepath.IsAbs(cwd) {
+		return "", false
+	}
+	// Join cleans, so a traversing name resolves to its real location and is
+	// then subject to the watch-path check like any other.
+	return filepath.Join(cwd, name), true
 }
 
 // matchesWatchPath returns true when name is located under one of the
