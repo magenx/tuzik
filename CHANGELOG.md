@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.2](https://github.com/magenx/tuzik/compare/v0.1.1...v0.1.2) (2026-09-19)
+
+
+### 🐛 Bug Fixes
+
+* resolve relative audit PATH names against the event CWD record ([3977ddd](https://github.com/magenx/tuzik/commit/3977dddff0b5913257afd7eba2b8af9d2e7e247d))
+* Support relative PATH names via CWD audit records ([#62](https://github.com/magenx/tuzik/issues/62)) ([3977ddd](https://github.com/magenx/tuzik/commit/3977dddff0b5913257afd7eba2b8af9d2e7e247d))
+
+
+### 📝 Documentation
+
+* Update image in README.md ([#54](https://github.com/magenx/tuzik/issues/54)) ([5d6abd6](https://github.com/magenx/tuzik/commit/5d6abd676422588f483ed49ac4a1d794be6a0b2b))
+
+
+### 🚦 Maintenance
+
+* **deps:** bump actions/checkout from 6.0.1 to 7.0.1 ([#57](https://github.com/magenx/tuzik/issues/57)) ([a2cbf7e](https://github.com/magenx/tuzik/commit/a2cbf7e8e6de4267152135535365934aaddf627b))
+* **deps:** bump actions/setup-go from 6.1.0 to 7.0.0 ([#58](https://github.com/magenx/tuzik/issues/58)) ([45c98c7](https://github.com/magenx/tuzik/commit/45c98c7c7d7e2ee3429aae1be4b2d2446abdb908))
+* **deps:** bump github/codeql-action/analyze from 4.35.1 to 4.38.0 ([#60](https://github.com/magenx/tuzik/issues/60)) ([0f8b0c4](https://github.com/magenx/tuzik/commit/0f8b0c48d3a33ecde6cec353420da50837a4d635))
+* **deps:** bump github/codeql-action/init from 4.35.1 to 4.38.0 ([#61](https://github.com/magenx/tuzik/issues/61)) ([24c1732](https://github.com/magenx/tuzik/commit/24c1732bd10bd57e27e30be502a56163a0a881af))
+* **deps:** bump google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml ([6036baf](https://github.com/magenx/tuzik/commit/6036bafd9c81cfbad1dbad5c51067a2175bd8e90))
+* **deps:** bump google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml from 2.3.5 to 2.6.0 ([#59](https://github.com/magenx/tuzik/issues/59)) ([6036baf](https://github.com/magenx/tuzik/commit/6036bafd9c81cfbad1dbad5c51067a2175bd8e90))
+* **main:** tuzik 0.1.2-rc ([#63](https://github.com/magenx/tuzik/issues/63)) ([cd37c81](https://github.com/magenx/tuzik/commit/cd37c8120ed52b3cd06f65340ac23770d1181bce))
+
 ## [0.1.2-rc](https://github.com/magenx/tuzik/compare/v0.1.1...v0.1.2-rc) (2026-09-19)
 
 
