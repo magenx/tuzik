@@ -86,7 +86,7 @@ jobs:
 
       - name: Upload artifacts to GitHub Release (still draft at this point)
         id: upload-artifact
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           token: ${{ secrets.TUZIK_TOKEN }}
           tag_name: ${{ inputs.tag_name }}
