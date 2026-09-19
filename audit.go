@@ -13,6 +13,7 @@ const (
 	// Audit record types (from linux/audit.h).
 	AuditTypeSyscall   = 1300
 	AuditTypePath      = 1302
+	AuditTypeCwd       = 1307
 	AuditTypeEOE       = 1320
 	AuditTypeProctitle = 1327
 )
@@ -22,6 +23,7 @@ const (
 var auditTypeNames = map[string]int{
 	"SYSCALL":   AuditTypeSyscall,
 	"PATH":      AuditTypePath,
+	"CWD":       AuditTypeCwd,
 	"EOE":       AuditTypeEOE,
 	"PROCTITLE": AuditTypeProctitle,
 }

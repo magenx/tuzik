@@ -31,7 +31,11 @@ func NewFileAction(cfg *Config) *FileAction {
 // ctx carries process metadata used when quarantining; a nil ctx is treated
 // as an empty context (comm "unknown", uid "0").
 func (a *FileAction) Execute(path string, ctx *FileContext) error {
-	// Resolve the path to an absolute, cleaned form.
+	// Resolve the path to an absolute, cleaned form.  The handler already
+	// resolves audit PATH names against the event's CWD record, so this is
+	// normally a no-op; it must never be relied upon to absolutise a name,
+	// because it would do so against tuzik's own working directory rather
+	// than that of the audited process.
 	// filepath.Abs already calls filepath.Clean internally.
 	absPath, err := filepath.Abs(path)
 	if err != nil {
