@@ -84,19 +84,15 @@ jobs:
             echo "${GOARCH}_checksum=$(sha256sum ${BINARY_NAME_ARCH})" >> ${GITHUB_OUTPUT}
           done
 
-      - name: Upload artifacts to GitHub Release (still draft at this point)
-        id: upload-artifact
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        with:
-          token: ${{ secrets.TUZIK_TOKEN }}
-          tag_name: ${{ inputs.tag_name }}
-          files: |
-            ${{ github.event.repository.name }}-*
-          draft: true
-          prerelease: ${{ inputs.prerelease }}
-          append_body: true
-          body: |
-            <details>
+      - name: Append release body and upload all assets
+        env:
+          GH_TOKEN: ${{ secrets.TUZIK_TOKEN }}
+        run: |
+          # Get current release body
+          CURRENT_BODY=$(gh release view "${{ inputs.tag_name }}" --repo "${{ github.repository }}" --json body -q .body)
+          
+          # New content to append
+          NEW_BODY='<details>
             <summary>Installation for <strong>Linux (amd64)</strong></summary>
             <pre><code>
             curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}/${{ github.event.repository.name }}-linux-amd64
@@ -123,4 +119,19 @@ jobs:
               echo "Verification failed"
             fi
             </code></pre>
-            </details>
+            </details>'
+          
+          # Combine current body with new content
+          FINAL_BODY="${CURRENT_BODY}\\n\\n${NEW_BODY}"
+          
+          # Update release with new body and settings
+          gh release edit "${{ inputs.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            --draft \
+            --prerelease=${{ inputs.prerelease }} \
+            --notes="$FINAL_BODY"
+          
+          # Upload all assets
+          gh release upload "${{ inputs.tag_name }}" ${{ github.event.repository.name }}-* \
+            --repo "${{ github.repository }}" \
+            --clobber
