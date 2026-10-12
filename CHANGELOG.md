@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4-rc](https://github.com/magenx/tuzik/compare/v0.1.3...v0.1.4-rc) (2026-10-12)
+
+
+### 🐛 Bug Fixes
+
+* Use go.mod for Go version instead of workflow variables ([#73](https://github.com/magenx/tuzik/issues/73)) ([dda477c](https://github.com/magenx/tuzik/commit/dda477c69c68b36b58dfb14eca3358c6d81e4dbb))
+
 ## [0.1.3](https://github.com/magenx/tuzik/compare/v0.1.2...v0.1.3) (2026-09-28)
 
 
