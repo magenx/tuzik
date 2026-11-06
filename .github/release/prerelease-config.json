@@ -38,7 +38,8 @@
       "pull-request-header": ":robot: I have created a [ pre-release ]",
       "include-v-in-tag": true,
       "include-component-in-tag": false,
-      "always-update": true
+      "always-update": true,
+      "force-tag-creation": true
     }
   }
 }
