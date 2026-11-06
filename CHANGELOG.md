@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.5-rc](https://github.com/magenx/tuzik/compare/v0.1.4...v0.1.5-rc) (2026-11-06)
+
+
+### 🐛 Bug Fixes
+
+* Bump Go to 1.26.10 and stop bogus 0.2.0-rc release PRs ([#84](https://github.com/magenx/tuzik/issues/84)) ([877cc6f](https://github.com/magenx/tuzik/commit/877cc6f816ba615cb4cdd3f2f870097c3370a9b0))
+
+
+### 🚦 Maintenance
+
+* **deps:** bump google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml ([3f9836f](https://github.com/magenx/tuzik/commit/3f9836f9200cb20985c37ef0816db99acdcc8180))
+* **deps:** bump google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml from 2.6.0 to 2.7.0 ([#77](https://github.com/magenx/tuzik/issues/77)) ([3f9836f](https://github.com/magenx/tuzik/commit/3f9836f9200cb20985c37ef0816db99acdcc8180))
+
 ## [0.1.4](https://github.com/magenx/tuzik/compare/v0.1.3...v0.1.4) (2026-10-12)
 
 
